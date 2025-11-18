@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>7-Day QPF & Rain Chance Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg: #040712;
+      --bg-elevated: #0b1020;
+      --bg-elevated-soft: #11182a;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.1);
+      --accent-strong: #2563eb;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: rgba(148, 163, 184, 0.25);
+      --danger: #ef4444;
+      --radius-lg: 18px;
+      --radius-xl: 26px;
+      --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.7);
+      --shadow-subtle: 0 12px 24px rgba(15, 23, 42, 0.4);
+      --transition-fast: 150ms ease-out;
+      --transition-med: 220ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1f2933 0, #020617 50%, #000 100%);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      padding: 1.5rem;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 900px) {
+      body {
+        padding: 2rem 3rem 3rem;
+      }
+    }
+
+    .app-shell {
+      max-width: 1280px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.25rem 1.5rem;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(15, 23, 42, 0.9));
+      border-radius: var(--radius-xl);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(18px);
+    }
+
+    header .title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    header h1 {
+      font-size: clamp(1.4rem, 2vw, 1.7rem);
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      letter-spacing: 0.02em;
+    }
+
+    .title-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.1rem;
+      height: 2.1rem;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #4f46e5, #0f172a);
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.25),
+        0 8px 25px rgba(15, 23, 42, 0.9);
+      font-size: 1.1rem;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    header p span.highlight {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .header-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.4rem;
+      min-width: 210px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 0.5rem;
+      height: 0.5rem;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+
+    button.refresh-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      background: radial-gradient(circle at 10% 0%, var(--accent-strong), var(--accent));
+      color: #e5e7eb;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, 0.55);
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+        filter var(--transition-fast);
+    }
+
+    button.refresh-btn:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.07);
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.65);
+    }
+
+    button.refresh-btn:active {
+      transform: translateY(0.5px) scale(0.99);
+      box-shadow: 0 5px 12px rgba(37, 99, 235, 0.5);
+    }
+
+    button.refresh-btn .icon {
+      font-size: 0.9rem;
+    }
+
+    .refresh-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .status-line {
+      margin-top: 0.25rem;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    main {
+      margin-top: 0.75rem;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 1rem;
+    }
+
+    .location-card {
+      position: relative;
+      padding: 1rem;
+      border-radius: var(--radius-lg);
+      background: radial-gradient(circle at top left,
+        rgba(59, 130, 246, 0.15),
+        rgba(15, 23, 42, 0.98));
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-subtle);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transform: translateY(0);
+      transition: transform var(--transition-med), box-shadow var(--transition-med),
+        border-color var(--transition-med), background var(--transition-med);
+    }
+
+    .location-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 120% -10%, rgba(96, 165, 250, 0.25), transparent 60%);
+      opacity: 0;
+      transition: opacity var(--transition-med);
+      pointer-events: none;
+    }
+
+    .location-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 22px 40px rgba(15, 23, 42, 0.9);
+      border-color: rgba(96, 165, 250, 0.45);
+    }
+
+    .location-card:hover::before {
+      opacity: 1;
+    }
+
+    .location-card.loading {
+      opacity: 0.9;
+    }
+
+    .location-card.error {
+      border-color: rgba(248, 113, 113, 0.7);
+    }
+
+    .location-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .location-name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .location-name {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .location-subtitle {
+      margin: 0;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .location-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.65rem;
+      margin-top: 0.4rem;
+    }
+
+    @media (max-width: 480px) {
+      .location-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .metric {
+      padding: 0.55rem 0.65rem;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .metric-value {
+      font-size: 0.98rem;
+      font-weight: 600;
+    }
+
+    .metric-note {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .metric-value.highlight-good {
+      color: #4ade80;
+    }
+
+    .metric-value.highlight-wet {
+      color: #60a5fa;
+    }
+
+    .location-footer {
+      margin-top: 0.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+
+    .foot-source {
+      opacity: 0.9;
+    }
+
+    .foot-error {
+      color: var(--danger);
+      font-weight: 500;
+    }
+
+    .sparkline-bar {
+      width: 100%;
+      height: 0.38rem;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      overflow: hidden;
+    }
+
+    .sparkline-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #3b82f6, #6366f1);
+      width: 0;
+      transition: width var(--transition-med);
+    }
+
+    /* tiny loading indicator */
+    .dots {
+      display: inline-flex;
+      gap: 2px;
+      vertical-align: middle;
+    }
+
+    .dots span {
+      width: 3px;
+      height: 3px;
+      border-radius: 999px;
+      background: var(--muted);
+      animation: pulse 900ms infinite alternate;
+    }
+
+    .dots span:nth-child(2) {
+      animation-delay: 90ms;
+    }
+    .dots span:nth-child(3) {
+      animation-delay: 180ms;
+    }
+
+    @keyframes pulse {
+      from {
+        opacity: 0.3;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div class="title-block">
+        <h1>
+          <span class="title-pill">☔</span>
+          Gulf Region 7-Day QPF & Rain Chance
+        </h1>
+        <p>
+          Pulls <span class="highlight">NWS forecastGridData</span> for each location
+          and computes a 7-day quantitative precipitation forecast (QPF) and average
+          chance of precipitation.
+        </p>
+      </div>
+      <div class="header-meta">
+        <div class="controls">
+          <button class="refresh-btn" id="refresh-button" type="button">
+            <span class="icon">⟳</span>
+            Refresh All
+          </button>
+        </div>
+        <div class="status-pill" id="status-pill">
+          <span class="status-dot"></span>
+          <span id="status-text">Ready to fetch data…</span>
+        </div>
+        <div class="status-line" id="status-line">
+          Uses NWS <code>forecastGridData</code> QPF and PoP for the next 7 days.
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="cards-grid" id="cards-container"></div>
+    </main>
+  </div>
+
+  <!-- Card template -->
+  <template id="location-card-template">
+    <article class="location-card loading">
+      <div class="location-header">
+        <div class="location-name-row">
+          <h2 class="location-name"></h2>
+          <span class="badge">7-Day QPF</span>
+        </div>
+        <p class="location-subtitle">
+          Initializing…
+        </p>
+      </div>
+
+      <div class="location-body">
+        <div class="metric">
+          <span class="metric-label">Total QPF (7 days)</span>
+          <span class="metric-value location-qpf">–</span>
+          <span class="metric-note">Liquid-equivalent precip, inches</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Chance of precip (avg)</span>
+          <span class="metric-value location-pop">–</span>
+          <div class="sparkline-bar">
+            <div class="sparkline-fill"></div>
+          </div>
+          <span class="metric-note">Time-weighted over next 7 days</span>
+        </div>
+      </div>
+
+      <footer class="location-footer">
+        <span class="location-meta foot-source">Geocoding & NWS lookup pending…</span>
+        <span class="location-meta foot-error"></span>
+      </footer>
+    </article>
+  </template>
+
+  <script>
+    // -------------------------
+    // Configuration
+    // -------------------------
+    const LOCATION_NAMES = [
+      "Lake Charles, LA",
+      "Milam, TX",
+      "Anacoco, LA",
+      "Zwolle, LA",
+      "Zavalla, TX",
+      "Lumberton, TX",
+      "Bastrop, TX",
+      "Smithville, TX",
+      "Port Arthur, TX",
+      "Somerville, TX",
+      "Kennard, TX",
+      "San Felipe, TX",
+      "Huntsville, TX",
+      "Livingston, TX",
+      "New Waverly, TX",
+      "Coldspring, TX",
+      "Needville, TX",
+      "New Caney, TX",
+      "Houston, TX",
+      "Galveston, TX"
+    ];
+
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+    // Simple element helpers
+    const $ = (selector, root = document) => root.querySelector(selector);
+
+    // -------------------------
+    // Time interval parsing
+    // -------------------------
+
+    /**
+     * Parse an ISO-8601 duration (very small subset for NWS use) into milliseconds.
+     * Handles patterns like PnD, PTnH, PTnHnM, PTnHnMnS.
+     */
+    function parseIsoDurationToMs(durationStr) {
+      const match =
+        /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/i.exec(durationStr);
+      if (!match) {
+        return 0;
+      }
+      const days = parseInt(match[1] || "0", 10);
+      const hours = parseInt(match[2] || "0", 10);
+      const minutes = parseInt(match[3] || "0", 10);
+      const seconds = parseInt(match[4] || "0", 10);
+
+      const totalSeconds =
+        days * 24 * 60 * 60 +
+        hours * 60 * 60 +
+        minutes * 60 +
+        seconds;
+
+      return totalSeconds * 1000;
+    }
+
+    /**
+     * NWS gridpoint "validTime" is like:
+     *   "2025-11-17T18:00:00+00:00/PT3H"
+     * This parses it into { start: Date, end: Date }.
+     */
+    function parseValidTimeInterval(validTime) {
+      const [startStr, durationStr] = validTime.split("/");
+      const start = new Date(startStr);
+      const durationMs = parseIsoDurationToMs(durationStr || "PT1H") || (60 * 60 * 1000);
+      const end = new Date(start.getTime() + durationMs);
+      return { start, end, durationMs };
+    }
+
+    /**
+     * Compute overlap (in ms) between a validTime interval and a [rangeStart, rangeEnd] window.
+     */
+    function computeOverlapMs(validTime, rangeStart, rangeEnd) {
+      const { start, end, durationMs } = parseValidTimeInterval(validTime);
+      const startMs = start.getTime();
+      const endMs = end.getTime();
+      const rangeStartMs = rangeStart.getTime();
+      const rangeEndMs = rangeEnd.getTime();
+
+      const overlapStart = Math.max(startMs, rangeStartMs);
+      const overlapEnd = Math.min(endMs, rangeEndMs);
+      const overlapMs = Math.max(0, overlapEnd - overlapStart);
+
+      return { overlapMs, intervalMs: durationMs };
+    }
+
+    // -------------------------
+    // API calls
+    // -------------------------
+
+    /**
+     * Geocode a place name to { lat, lon, resolvedName } using a free public API.
+     * You can swap this out for any geocoder you prefer.
+     */
+    async function geocodeLocation(placeName) {
+      const url =
+        "https://geocoding-api.open-meteo.com/v1/search?name=" +
+        encodeURIComponent(placeName) +
+        "&count=1&language=en&format=json&country=US";
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Geocoding failed (${res.status})`);
+      }
+      const data = await res.json();
+      if (!data.results || !data.results.length) {
+        throw new Error("No geocoding result");
+      }
+
+      const first = data.results[0];
+      return {
+        lat: first.latitude,
+        lon: first.longitude,
+        resolvedName: `${first.name}${first.admin1 ? ", " + first.admin1 : ""}`
+      };
+    }
+
+    /**
+     * Fetch NWS gridpoint forecastGridData properties for a lat/lon.
+     */
+    async function getNwsGridForecastProps(lat, lon) {
+      const pointsUrl = `https://api.weather.gov/points/${lat},${lon}`;
+
+      const pointsRes = await fetch(pointsUrl, {
+        headers: { Accept: "application/geo+json" }
+      });
+      if (!pointsRes.ok) {
+        throw new Error(`NWS /points failed (${pointsRes.status})`);
+      }
+      const points = await pointsRes.json();
+      const gridUrl = points?.properties?.forecastGridData;
+      if (!gridUrl) {
+        throw new Error("NWS forecastGridData URL not found");
+      }
+
+      const gridRes = await fetch(gridUrl, {
+        headers: { Accept: "application/geo+json" }
+      });
+
+      if (!gridRes.ok) {
+        throw new Error(`NWS gridpoint forecast failed (${gridRes.status})`);
+      }
+
+      const grid = await gridRes.json();
+      return grid.properties || {};
+    }
+
+    // -------------------------
+    // QPF / PoP aggregation (7 days)
+    // -------------------------
+
+    /**
+     * Compute 7-day total QPF (inches) and time-weighted average PoP (%)
+     * from NWS gridpoint forecast properties.
+     */
+    function computeSevenDayStats(gridProps) {
+      const now = new Date();
+      const end = new Date(now.getTime() + SEVEN_DAYS_MS);
+
+      const qpfSeries = gridProps.quantitativePrecipitation;
+      const popSeries = gridProps.probabilityOfPrecipitation;
+
+      let totalQpfMm = 0;
+      let weightedPopSum = 0;
+      let weightedPopDurationMs = 0;
+
+      if (qpfSeries && Array.isArray(qpfSeries.values)) {
+        for (const entry of qpfSeries.values) {
+          if (entry.value == null) continue;
+          const { overlapMs, intervalMs } = computeOverlapMs(
+            entry.validTime,
+            now,
+            end
+          );
+          if (overlapMs <= 0 || intervalMs <= 0) continue;
+
+          const fraction = overlapMs / intervalMs;
+          // NWS uses mm (or kg/m^2 ~ mm) for quantitativePrecipitation
+          totalQpfMm += entry.value * fraction;
+        }
+      }
+
+      if (popSeries && Array.isArray(popSeries.values)) {
+        for (const entry of popSeries.values) {
+          if (entry.value == null) continue;
+          const { overlapMs, intervalMs } = computeOverlapMs(
+            entry.validTime,
+            now,
+            end
+          );
+          if (overlapMs <= 0 || intervalMs <= 0) continue;
+
+          // Time-weighted average of PoP over the 7-day window
+          weightedPopSum += entry.value * overlapMs;
+          weightedPopDurationMs += overlapMs;
+        }
+      }
+
+      const precipInches = totalQpfMm / 25.4; // 25.4 mm per inch
+      const avgPop =
+        weightedPopDurationMs > 0
+          ? weightedPopSum / weightedPopDurationMs
+          : 0;
+
+      return {
+        precipInches,
+        averagePopPercent: avgPop
+      };
+    }
+
+    // -------------------------
+    // UI / rendering logic
+    // -------------------------
+
+    function formatInches(value) {
+      if (!isFinite(value) || value <= 0) return "0.00\"";
+      if (value < 0.01) return "<0.01\"";
+      return value.toFixed(2) + "\"";
+    }
+
+    function createCard(placeName) {
+      const template = $("#location-card-template");
+      const fragment = template.content.cloneNode(true);
+      const card = fragment.querySelector(".location-card");
+
+      $(".location-name", card).textContent = placeName;
+      $(".location-subtitle", card).innerHTML =
+        'Geocoding location <span class="dots"><span></span><span></span><span></span></span>';
+      $(".location-qpf", card).textContent = "Loading…";
+      $(".location-pop", card).textContent = "Loading…";
+      $(".sparkline-fill", card).style.width = "0";
+
+      return card;
+    }
+
+    async function fillCard(placeName, card) {
+      const subtitleEl = $(".location-subtitle", card);
+      const qpfEl = $(".location-qpf", card);
+      const popEl = $(".location-pop", card);
+      const sparkFill = $(".sparkline-fill", card);
+      const footSource = $(".foot-source", card);
+      const footError = $(".foot-error", card);
+
+      try {
+        subtitleEl.innerHTML =
+          'Looking up coordinates <span class="dots"><span></span><span></span><span></span></span>';
+
+        const { lat, lon, resolvedName } = await geocodeLocation(placeName);
+
+        subtitleEl.textContent = `${resolvedName} · lat ${lat.toFixed(
+          2
+        )}, lon ${lon.toFixed(2)}`;
+
+        footSource.textContent = "Fetching NWS QPF / PoP…";
+
+        const gridProps = await getNwsGridForecastProps(lat, lon);
+        const { precipInches, averagePopPercent } =
+          computeSevenDayStats(gridProps);
+
+        const popRounded = Math.round(averagePopPercent);
+
+        qpfEl.textContent = formatInches(precipInches);
+        qpfEl.classList.add("highlight-wet");
+
+        popEl.textContent = isFinite(popRounded) ? popRounded + "%" : "0%";
+        popEl.classList.add("highlight-good");
+
+        const fillWidth = Math.max(
+          4,
+          Math.min(100, isFinite(popRounded) ? popRounded : 0)
+        );
+        sparkFill.style.width = fillWidth + "%";
+
+        footSource.textContent = "Source: NWS forecastGridData (QPF & PoP)";
+        footError.textContent = "";
+        card.classList.remove("loading");
+      } catch (err) {
+        console.error("Error for", placeName, err);
+        card.classList.add("error");
+        subtitleEl.textContent = "Unable to fetch complete data.";
+        qpfEl.textContent = "—";
+        popEl.textContent = "—";
+        sparkFill.style.width = "0";
+        footSource.textContent = "Check network / API access.";
+        footError.textContent = err.message || "Unknown error";
+      }
+    }
+
+    async function loadAllLocations() {
+      const container = $("#cards-container");
+      const statusText = $("#status-text");
+      const statusLine = $("#status-line");
+
+      container.innerHTML = "";
+      statusText.textContent = "Fetching 7-day QPF & PoP for all locations…";
+      statusLine.textContent =
+        "Calls geocoding + api.weather.gov gridpoint data. This may take a few seconds.";
+
+      const cards = [];
+
+      for (const place of LOCATION_NAMES) {
+        const card = createCard(place);
+        container.appendChild(card);
+        cards.push({ place, card });
+      }
+
+      // Fire off all fetches in parallel, but don't break if one fails.
+      await Promise.all(
+        cards.map(({ place, card }) => fillCard(place, card))
+      );
+
+      const date = new Date();
+      statusText.textContent = "All locations updated.";
+      statusLine.textContent = `Last updated: ${date.toLocaleString()}`;
+    }
+
+    // -------------------------
+    // Wire up events
+    // -------------------------
+    document.addEventListener("DOMContentLoaded", () => {
+      $("#refresh-button").addEventListener("click", () => {
+        loadAllLocations();
+      });
+
+      // Initial load
+      loadAllLocations();
+    });
+  </script>
+</body>
+</html>
