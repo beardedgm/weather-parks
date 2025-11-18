@@ -495,6 +495,15 @@
       "Galveston, TX"
     ];
 
+    // Manual geocode overrides for locations that the primary geocoder struggles to resolve
+    const GEOCODE_OVERRIDES = {
+      "San Felipe, TX": {
+        lat: 29.7802,
+        lon: -96.1036,
+        resolvedName: "San Felipe, TX"
+      }
+    };
+
     const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
     const GEOCODE_CACHE = new Map();
     const MAX_CONCURRENT_REQUESTS = 4;
@@ -572,26 +581,51 @@
      * You can swap this out for any geocoder you prefer.
      */
     async function geocodeLocation(placeName) {
-      const url =
-        "https://geocoding-api.open-meteo.com/v1/search?name=" +
-        encodeURIComponent(placeName) +
-        "&count=1&language=en&format=json&country=US";
-
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`Geocoding failed (${res.status})`);
-      }
-      const data = await res.json();
-      if (!data.results || !data.results.length) {
-        throw new Error("No geocoding result");
+      if (GEOCODE_OVERRIDES[placeName]) {
+        return GEOCODE_OVERRIDES[placeName];
       }
 
-      const first = data.results[0];
-      return {
-        lat: first.latitude,
-        lon: first.longitude,
-        resolvedName: `${first.name}${first.admin1 ? ", " + first.admin1 : ""}`
-      };
+      const candidateNames = new Set([placeName]);
+      if (placeName.includes(",")) {
+        const [cityPart, statePart] = placeName.split(",");
+        const trimmedCity = cityPart.trim();
+        const trimmedState = (statePart || "").trim();
+        if (trimmedCity && trimmedState) {
+          candidateNames.add(`${trimmedCity} ${trimmedState}`);
+        }
+        if (trimmedCity) {
+          candidateNames.add(trimmedCity);
+        }
+      }
+
+      const errors = [];
+
+      for (const candidate of candidateNames) {
+        const url =
+          "https://geocoding-api.open-meteo.com/v1/search?name=" +
+          encodeURIComponent(candidate) +
+          "&count=1&language=en&format=json&country=US";
+
+        const res = await fetch(url);
+        if (!res.ok) {
+          errors.push(`"${candidate}" (${res.status})`);
+          continue;
+        }
+        const data = await res.json();
+        if (!data.results || !data.results.length) {
+          errors.push(`"${candidate}" (no results)`);
+          continue;
+        }
+
+        const first = data.results[0];
+        return {
+          lat: first.latitude,
+          lon: first.longitude,
+          resolvedName: `${first.name}${first.admin1 ? ", " + first.admin1 : ""}`
+        };
+      }
+
+      throw new Error(`No geocoding result (tried: ${errors.join(", ")})`);
     }
 
     /**
