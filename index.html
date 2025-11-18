@@ -496,6 +496,8 @@
     ];
 
     const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const GEOCODE_CACHE = new Map();
+    const MAX_CONCURRENT_REQUESTS = 4;
 
     // Simple element helpers
     const $ = (selector, root = document) => root.querySelector(selector);
@@ -562,6 +564,9 @@
     // API calls
     // -------------------------
 
+    const NWS_USER_AGENT =
+      "weather-parks-dashboard/1.0 (+https://github.com/openai/weather-parks; contact@weather-parks.app)";
+
     /**
      * Geocode a place name to { lat, lon, resolvedName } using a free public API.
      * You can swap this out for any geocoder you prefer.
@@ -596,7 +601,10 @@
       const pointsUrl = `https://api.weather.gov/points/${lat},${lon}`;
 
       const pointsRes = await fetch(pointsUrl, {
-        headers: { Accept: "application/geo+json" }
+        headers: {
+          Accept: "application/geo+json",
+          "User-Agent": NWS_USER_AGENT
+        }
       });
       if (!pointsRes.ok) {
         throw new Error(`NWS /points failed (${pointsRes.status})`);
@@ -608,7 +616,10 @@
       }
 
       const gridRes = await fetch(gridUrl, {
-        headers: { Accept: "application/geo+json" }
+        headers: {
+          Accept: "application/geo+json",
+          "User-Agent": NWS_USER_AGENT
+        }
       });
 
       if (!gridRes.ok) {
@@ -682,6 +693,25 @@
       };
     }
 
+    async function runWithConcurrencyLimit(
+      items,
+      worker,
+      limit = MAX_CONCURRENT_REQUESTS
+    ) {
+      if (!items.length) return;
+
+      let index = 0;
+      const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (index < items.length) {
+          const currentIndex = index++;
+          const item = items[currentIndex];
+          await worker(item, currentIndex);
+        }
+      });
+
+      await Promise.all(workers);
+    }
+
     // -------------------------
     // UI / rendering logic
     // -------------------------
@@ -719,7 +749,13 @@
         subtitleEl.innerHTML =
           'Looking up coordinates <span class="dots"><span></span><span></span><span></span></span>';
 
-        const { lat, lon, resolvedName } = await geocodeLocation(placeName);
+        const cachedGeo = GEOCODE_CACHE.get(placeName);
+        const { lat, lon, resolvedName } =
+          cachedGeo || (await geocodeLocation(placeName));
+
+        if (!cachedGeo) {
+          GEOCODE_CACHE.set(placeName, { lat, lon, resolvedName });
+        }
 
         subtitleEl.textContent = `${resolvedName} · lat ${lat.toFixed(
           2
@@ -778,10 +814,9 @@
         cards.push({ place, card });
       }
 
-      // Fire off all fetches in parallel, but don't break if one fails.
-      await Promise.all(
-        cards.map(({ place, card }) => fillCard(place, card))
-      );
+      await runWithConcurrencyLimit(cards, async ({ place, card }) => {
+        await fillCard(place, card);
+      });
 
       const date = new Date();
       statusText.textContent = "All locations updated.";
